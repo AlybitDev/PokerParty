@@ -1,0 +1,15 @@
+services:
+  app:
+    image: alybit/onlinepoker:latest
+    user: root
+    ports:
+      - "3000:3000"
+    volumes:
+      - poker-data:/data
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    restart: unless-stopped
+
+volumes:
+  poker-data:

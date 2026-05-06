@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Party {
+  id            Int      @id @default(autoincrement())
+  uuid          String   @unique
+  name          String
+  startingMoney Int      @default(1000)
+  smallBlind    Int      @default(10)
+  bigBlind      Int      @default(20)
+  minPlayers    Int      @default(2)
+  maxPlayers    Int      @default(9)
+  turnTimeout   Int      @default(30)
+  status        String   @default("waiting")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  players       Player[]
+}
+
+model Player {
+  id        Int      @id @default(autoincrement())
+  partyId   Int
+  name      String
+  money     Int
+  isHost    Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  party     Party    @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}

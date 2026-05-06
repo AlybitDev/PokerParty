@@ -1,0 +1,30 @@
+-- CreateTable
+CREATE TABLE "Party" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "uuid" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "startingMoney" INTEGER NOT NULL DEFAULT 1000,
+    "smallBlind" INTEGER NOT NULL DEFAULT 10,
+    "bigBlind" INTEGER NOT NULL DEFAULT 20,
+    "minPlayers" INTEGER NOT NULL DEFAULT 2,
+    "maxPlayers" INTEGER NOT NULL DEFAULT 9,
+    "status" TEXT NOT NULL DEFAULT 'waiting',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Player" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "partyId" INTEGER NOT NULL,
+    "name" TEXT NOT NULL,
+    "money" INTEGER NOT NULL,
+    "isHost" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Player_partyId_fkey" FOREIGN KEY ("partyId") REFERENCES "Party" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Party_uuid_key" ON "Party"("uuid");
