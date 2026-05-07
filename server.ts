@@ -218,8 +218,6 @@ app.prepare().then(async () => {
         if (playerIndex === -1) return;
         if (playerIndex !== gs.currentPlayerIndex) return;
 
-        const player = gs.players[playerIndex];
-
         let processedAction = action;
         if (action === "check" && !canCheck(gs, currentPlayerId)) {
           processedAction = "call";

@@ -243,10 +243,10 @@ export function startNewHand(state: GameState, smallBlind: number, bigBlind: num
   players[bbIndex].money -= bb;
   players[bbIndex].betThisRound = bb;
 
-  let pot = sb + bb;
-  let currentBet = bb;
-  let minRaise = bigBlind;
-  let lastRaisePlayerIndex = -1;
+  const pot = sb + bb;
+  const currentBet = bb;
+  const minRaise = bigBlind;
+  const lastRaisePlayerIndex = -1;
 
   let currentPlayerIndex = (bbIndex + 1) % n;
   while (players[currentPlayerIndex].folded || players[currentPlayerIndex].money === 0) {
@@ -335,7 +335,7 @@ export function processAction(
   let newCurrentBet = state.currentBet;
   let newMinRaise = state.minRaise;
   let newLastRaisePlayerIndex = state.lastRaisePlayerIndex;
-  let newActions = [...state.actions];
+  const newActions = [...state.actions];
 
   switch (action) {
     case "fold":

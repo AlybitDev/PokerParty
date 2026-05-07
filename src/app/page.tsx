@@ -10,8 +10,8 @@ export default function Home() {
   const [startingMoney, setStartingMoney] = useState(1000);
   const [smallBlind, setSmallBlind] = useState(10);
   const [bigBlind, setBigBlind] = useState(20);
-  const [minPlayers, setMinPlayers] = useState(2);
   const [maxPlayers, setMaxPlayers] = useState(9);
+  const minPlayers = 2;
   const [joinUuid, setJoinUuid] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

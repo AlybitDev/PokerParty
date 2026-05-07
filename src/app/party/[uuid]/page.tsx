@@ -147,13 +147,9 @@ function phaseLabel(phase: string): string {
 export default function PartyPage() {
   const params = useParams();
   const uuid = params.uuid as string;
-  const [playerName, setPlayerName] = useState("");
+  const [playerName] = useState(generateName());
 
-  useEffect(() => {
-    setPlayerName(generateName());
-  }, []);
-
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const [party, setParty] = useState<PartyData | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [myId, setMyId] = useState<number | null>(null);
@@ -167,14 +163,14 @@ export default function PartyPage() {
     turnTimeout: 30,
   });
   const [raiseAmount, setRaiseAmount] = useState(40);
-  const [hideCards, setHideCards] = useState(false);
-  const [connected, setConnected] = useState(false);
-  const [turnTimeLeft, setTurnTimeLeft] = useState(20);
   const turnTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const gameStateRef = useRef(gameState);
   const myIdRef = useRef(myId);
   useEffect(() => { gameStateRef.current = gameState; }, [gameState]);
   useEffect(() => { myIdRef.current = myId; }, [myId]);
+
+  const [hideCards, setHideCards] = useState(false);
+  const [turnTimeLeft, setTurnTimeLeft] = useState(20);
   const linkRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -194,10 +190,9 @@ export default function PartyPage() {
 
   useEffect(() => {
     const s = io();
-    setSocket(s);
+    socketRef.current = s;
 
     s.on("connect", () => {
-      setConnected(true);
       s.emit("join-party", { partyUuid: uuid, playerName });
     });
 
@@ -206,7 +201,7 @@ export default function PartyPage() {
       if (data.gameState) {
         setGameState(data.gameState);
         const me = data.gameState.players.find((p) => p.name === playerName);
-        if (me && !myId) setMyId(me.id);
+        if (me && !myIdRef.current) setMyId(me.id);
       } else {
         setGameState(null);
       }
@@ -249,8 +244,10 @@ export default function PartyPage() {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
 
-  useEffect(() => {
-    if (party && showConfig) {
+  const turnTimeout = party?.turnTimeout ?? 30;
+
+  const openConfig = useCallback(() => {
+    if (party) {
       setConfigForm({
         name: party.name,
         startingMoney: party.startingMoney,
@@ -260,56 +257,60 @@ export default function PartyPage() {
         turnTimeout: party.turnTimeout,
       });
     }
-  }, [party, showConfig]);
-
-  const myPlayer = party?.players.find((p) => p.id === myId);
-
-  const turnTimeout = party?.turnTimeout ?? 30;
+    setShowConfig(true);
+  }, [party]);
 
   const handleAction = useCallback(
     (action: "fold" | "check" | "call" | "raise" | "all-in") => {
-      if (!socket || !uuid) return;
+      const s = socketRef.current;
+      if (!s || !uuid) return;
       const amount = action === "raise" ? raiseAmount : undefined;
-      socket.emit("player-action", { partyUuid: uuid, action, amount });
+      s.emit("player-action", { partyUuid: uuid, action, amount });
     },
-    [socket, uuid, raiseAmount]
+    [uuid, raiseAmount]
   );
 
   const handleStartGame = useCallback(() => {
-    if (!socket || !uuid) return;
-    socket.emit("start-game", { partyUuid: uuid });
-  }, [socket, uuid]);
+    const s = socketRef.current;
+    if (!s || !uuid) return;
+    s.emit("start-game", { partyUuid: uuid });
+  }, [uuid]);
 
   const handleRestartParty = useCallback(() => {
-    if (!socket || !uuid) return;
-    socket.emit("restart-party", { partyUuid: uuid, config: configForm });
+    const s = socketRef.current;
+    if (!s || !uuid) return;
+    s.emit("restart-party", { partyUuid: uuid, config: configForm });
     setShowConfig(false);
-  }, [socket, uuid, configForm]);
+  }, [uuid, configForm]);
 
   const handleSendChat = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (!socket || !chatInput.trim()) return;
-      socket.emit("send-chat-message", { partyUuid: uuid, message: chatInput.trim() });
+      const s = socketRef.current;
+      if (!s || !chatInput.trim()) return;
+      s.emit("send-chat-message", { partyUuid: uuid, message: chatInput.trim() });
       setChatInput("");
     },
-    [socket, uuid, chatInput]
+    [uuid, chatInput]
   );
 
   useEffect(() => {
-    const isGameActive = gameState && gameState.phase !== "idle" && gameState.phase !== "showdown";
+    const gs = gameStateRef.current;
+    const isGameActive = gs && gs.phase !== "idle" && gs.phase !== "showdown";
     if (isGameActive) {
-      setTurnTimeLeft(turnTimeout);
+      const initTimer = setTimeout(() => setTurnTimeLeft(turnTimeout), 0);
+
       turnTimerRef.current = setInterval(() => {
         setTurnTimeLeft((prev) => {
           if (prev <= 1) {
             if (turnTimerRef.current) clearInterval(turnTimerRef.current);
             const gs = gameStateRef.current;
             const id = myIdRef.current;
-            if (gs && id !== null) {
+            const s = socketRef.current;
+            if (gs && id !== null && s) {
               const activePlayer = gs.players[gs.currentPlayerIndex];
               if (activePlayer && activePlayer.id === id && !activePlayer.folded && !activePlayer.isAllIn) {
-                handleAction("fold");
+                s.emit("player-action", { partyUuid: uuid, action: "fold" });
               }
             }
             return 0;
@@ -317,13 +318,18 @@ export default function PartyPage() {
           return prev - 1;
         });
       }, 1000);
+
+      return () => {
+        clearTimeout(initTimer);
+        if (turnTimerRef.current) clearInterval(turnTimerRef.current);
+      };
     } else {
       if (turnTimerRef.current) clearInterval(turnTimerRef.current);
     }
     return () => {
       if (turnTimerRef.current) clearInterval(turnTimerRef.current);
     };
-  }, [gameState?.currentPlayerIndex, gameState?.phase, turnTimeout, myId]);
+  }, [gameState?.currentPlayerIndex, gameState?.phase, turnTimeout, myId, uuid]);
 
   const copyLink = () => {
     if (linkRef.current) {
@@ -481,7 +487,7 @@ export default function PartyPage() {
                   Next Hand
                 </button>
                 <button
-                  onClick={() => setShowConfig(true)}
+                  onClick={openConfig}
                   className="bg-green-700 hover:bg-green-600 active:scale-[0.97] px-4 py-2 rounded-lg transition-all duration-150"
                 >
                   Reconfigure Party
@@ -497,7 +503,7 @@ export default function PartyPage() {
                   {party.players.length < 2 ? "Waiting for players..." : "Start Game"}
                 </button>
                 <button
-                  onClick={() => setShowConfig(true)}
+                  onClick={openConfig}
                   className="bg-green-700 hover:bg-green-600 active:scale-[0.97] px-4 py-2 rounded-lg transition-all duration-150"
                 >
                   Reconfigure
