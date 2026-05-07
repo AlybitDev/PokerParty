@@ -20,9 +20,6 @@ const handle = app.getRequestHandler();
 const gameStates = new Map<number, GameState>();
 
 app.prepare().then(async () => {
-  await prisma.player.deleteMany();
-  await prisma.party.deleteMany();
-
   const server = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
     handle(req, res, parsedUrl);

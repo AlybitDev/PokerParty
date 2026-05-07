@@ -4,8 +4,9 @@ import path from "path";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
-const dbPath = path.resolve(process.cwd(), "dev.db");
-const adapter = new PrismaLibSql({ url: `file:${dbPath}` });
+const dbUrl =
+  process.env.DATABASE_URL || `file:${path.resolve(process.cwd(), "dev.db")}`;
+const adapter = new PrismaLibSql({ url: dbUrl });
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
 
