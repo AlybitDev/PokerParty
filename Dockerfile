@@ -9,7 +9,7 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npx prisma generate
+RUN npx prisma generate --config=prisma.config.ts
 RUN npm run build
 
 FROM base AS runner
@@ -32,8 +32,9 @@ COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/next.config.ts ./next.config.ts
+COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
 USER nextjs
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma db push && npx tsx server.ts"]
+CMD ["sh", "-c", "npx prisma db push --config=prisma.config.ts && npx tsx server.ts"]
